@@ -7,6 +7,12 @@ import {
   generateImagesRequest,
   generateImagesSuccess,
   generateImagesFailure,
+  processVideoRequest,
+  processVideoSuccess,
+  processVideoFailure,
+  downloadVideoRequest,
+  downloadVideoSuccess,
+  downloadVideoFailure,
 } from "../slices/videoSlice";
 import { API_ROUTES } from "../constants/apiRoutes";
 
@@ -54,7 +60,72 @@ function* handleGenerateImages(action) {
   }
 }
 
+function* handleProcessVideo(action) {
+  try {
+    const authToken = yield select(getAuthToken);
+    const response = yield call(
+      axios.post,
+      `${import.meta.env.VITE_BACKEND_URL}${API_ROUTES.CREATE_VIDEO}`,
+      { imageUrls: action.payload },
+      {
+        headers: {
+          Authorization: authToken,
+        },
+      }
+    );
+    yield put(processVideoSuccess(response.data));
+  } catch (error) {
+    yield put(processVideoFailure(error.message));
+  }
+}
+
+function* handleDownloadVideo(action) {
+  try {
+    const authToken = yield select(getAuthToken);
+    const response = yield call(
+      axios.get,
+      `${import.meta.env.VITE_BACKEND_URL}${API_ROUTES.DOWNLOAD_VIDEO}/${
+        action.payload
+      }`,
+      {
+        headers: {
+          Authorization: authToken,
+        },
+        responseType: "blob",
+      }
+    );
+
+    // Create blob from response
+    const blob = new Blob([response.data], {
+      type: response.headers["content-type"],
+    });
+
+    // Create download link
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    // Get filename from content-disposition header or use default
+    const contentDisposition = response.headers["content-disposition"];
+    const filename = contentDisposition
+      ? contentDisposition.split("filename=")[1].replace(/["']/g, "")
+      : "video.mp4";
+
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    yield put(downloadVideoSuccess(null));
+  } catch (error) {
+    yield put(downloadVideoFailure(error.message));
+  }
+}
+
 export function* watchVideo() {
   yield takeLatest(generateStoryRequest.type, handleGenerateStory);
   yield takeLatest(generateImagesRequest.type, handleGenerateImages);
+  yield takeLatest(processVideoRequest.type, handleProcessVideo);
+  yield takeLatest(downloadVideoRequest.type, handleDownloadVideo);
 }

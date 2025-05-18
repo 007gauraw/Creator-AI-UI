@@ -5,6 +5,8 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   generateStoryRequest,
   generateImagesRequest,
+  processVideoRequest,
+  downloadVideoRequest,
   resetVideo,
 } from "./store/slices/videoSlice";
 import "./Dashboard.css";
@@ -13,7 +15,9 @@ function Dashboard() {
   const auth = useAuth();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { loading, error, images, story } = useSelector((state) => state.video);
+  const { loading, error, images, story, video, videoUrl } = useSelector(
+    (state) => state.video
+  );
   const [editedStory, setEditedStory] = useState(null);
 
   useEffect(() => {
@@ -56,11 +60,25 @@ function Dashboard() {
     }
   };
 
+  const handleGenerateVideo = () => {
+    if (images && images.length) {
+      const imageUrls = images.map((img) => img.presignedUrl);
+      dispatch(processVideoRequest(imageUrls));
+    }
+  };
+
+  const handleDownloadVideo = () => {
+    if (video && video.exportId) {
+      dispatch(downloadVideoRequest(video.exportId));
+    }
+  };
+
   // Helper function to find image for a story segment using the story's existing ID
   const findImageForSegment = (segment) => {
     if (!images || !images.length) return null;
     return images.find((img) => img.imageId === segment.id);
   };
+  // Video download is now handled directly in the saga
 
   return (
     <div className="dashboard">
@@ -123,6 +141,29 @@ function Dashboard() {
           >
             Generate Images
           </button>
+          {images && images.length > 0 && (
+            <button
+              onClick={handleGenerateVideo}
+              disabled={loading}
+              className="generate-video-button"
+              style={{ marginLeft: "1rem" }}
+            >
+              Generate Video
+            </button>
+          )}
+          {video && video.exportId && (
+            <button
+              onClick={handleDownloadVideo}
+              disabled={loading}
+              className="generate-video-button"
+              style={{ marginLeft: "1rem" }}
+            >
+              Download Video
+            </button>
+          )}
+          {video && video.status === "pending" && (
+            <p className="status-message">Video Status: {video.message}</p>
+          )}
         </div>
       )}
 
